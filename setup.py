@@ -6,5 +6,5 @@ setup(name='toros',
       author='Martin Beroiz',
       author_email='martinberoiz@phys.utb.edu',
       url='http://toros.phys.utb.edu',
-      packages=['toros'],
+      packages=['toros','toros.instrument'],
      )

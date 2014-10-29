@@ -53,7 +53,7 @@ def getReference(hdulist):
     return reg_ref
     
     
-def convertToU8(image, goodPixMask):
+def convertToU8(image, goodPixMask=None):
     
     reduced_im = makeSourcesImage(image, mask=goodPixMask)
     xmin = reduced_im.min()
