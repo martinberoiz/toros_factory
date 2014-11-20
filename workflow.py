@@ -8,31 +8,34 @@ if __name__ == '__main__':
     
     image_file_name = sys.argv[1]
     image = telescope.reduce(image_file_name)
-
-    hdulist = fits.open(image_file_name)
-    hdulist[0].data = image
     
     #image = toros.trackremoval.removeTracks(image) #Still needs to be implemented
     
     #toros.photometry.photoCalibrate(hdulist, catalogFileName)
 
-    #toros.registration()
-
-    refImage = toros.skygoldmaster.getReference(hdulist)
+    refImage = toros.skygoldmaster.getReference(image)
 
     optimal_image, kernel, background = toros.subtraction.getOptimalKernelAndBkg(image, refImage)
+    
+    plt.figure()
+    plt.imshow(image)
+    plt.colorbar()
+    plt.savefig('test_image.png')
 
+    plt.figure()
+    plt.imshow(refImage)
+    plt.colorbar()
+    plt.savefig('gold_reference.png')
+
+    plt.figure()
     plt.imshow(optimal_image)
     plt.colorbar()
-    plt.show()
+    plt.savefig('optimal_image2subtract.png')
 
-    plt.imshow(kernel, interpolation='None')
-    plt.colorbar()
-    plt.show()
-
-    plt.imshow(background)
-    plt.colorbar()
-    plt.show()
-
-    #subtracted_image = optimal_image - refImage
+    subtracted_image = optimal_image - refImage
     #Keep working with subtracted_image...
+
+    plt.figure()
+    plt.imshow(subtracted_image)
+    plt.colorbar()
+    plt.savefig('subtraction.png')
