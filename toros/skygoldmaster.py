@@ -84,6 +84,7 @@ def makeSourcesMask(dataImg, noiseLvl = 3.):
     m, s = bkgNoiseSigma(dataImg, noiseLvl = noiseLvl)
     srcsMask = dataImg > m + noiseLvl*s
     if isinstance(srcsMask, np.ma.MaskedArray):
+        srcsMask = srcsMask.astype(bool)
         srcsMask.set_fill_value(False)
         srcsMask = srcsMask.filled()
     return srcsMask
@@ -106,6 +107,7 @@ def bkgNoiseSigma(dataImg, noiseLvl = 3.0):
         prevSgm = s
         bkgMask = np.logical_and(dataImg < m + noiseLvl*s, dataImg > m - noiseLvl*s)
         if isinstance(bkgMask, np.ma.MaskedArray):
+            bkgMask = bkgMask.astype(bool)
             bkgMask.set_fill_value(False)
             bkgMask = bkgMask.filled()
         m, s = dataImg[bkgMask].mean(), dataImg[bkgMask].std()
