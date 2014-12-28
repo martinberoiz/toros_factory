@@ -27,9 +27,9 @@
 """
 
 import numpy as np
-import cv2
 import math
 from scipy import signal
+from scipy import ndimage
 
 def __gauss(shape = (10,10), center=None, sx=2, sy=2):
     h, w = shape
@@ -184,7 +184,7 @@ def getOptimalKernelAndBkg(image, refImage, gaussList = None, bkgDegree = 3, ker
     
     badPixMask = None
     if isinstance(refImage, np.ma.MaskedArray):
-        refMask = cv2.dilate(refImage.mask.astype('uint8'), np.ones(kernelShape))
+        refMask = ndimage.binary_dilation(refImage.mask.astype('uint8'), structure=np.ones(kernelShape))
         badPixMask = refMask.astype('bool')
         if isinstance(image, np.ma.MaskedArray):
              badPixMask += image.mask
