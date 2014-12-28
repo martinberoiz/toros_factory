@@ -8,6 +8,8 @@ import sys
 if '../' not in sys.path: sys.path.append('../')
 import toros.ransac as ransac
 
+import shlex, subprocess
+
 _referenceSourcesNumpyFileName = 'masterReferenceSources.npy'
 _invariantNumpyFileName        = 'masterInvariants.npy'
 _asterismNumpyFileName         = 'masterAsterisms.npy'
@@ -160,3 +162,34 @@ def createIndexForMaster(ref_srcs, invariantMap=None):
     np.save(os.path.join(resource_dir, _asterismNumpyFileName), ref_asterisms)
     np.save(os.path.join(resource_dir, _referenceSourcesNumpyFileName), ref_srcs)
     
+    
+def addAstrometryNet(image, header):
+    output_dir = 'astrometrynet_output'
+    os.system('mkdir -p %s' % (output_dir))
+
+    #Create a temporary file for Astrometry.net to process
+    temp_fits_filename = 'temp_file.fits'
+    if isinstance(image, np.ma.MaskedArray):
+        myhdulist = fits.HDUList(fits.PrimaryHDU(data=image.filled(fill_value = 0.), header=header))
+    else:
+        myhdulist = fits.HDUList(fits.PrimaryHDU(data=image, header=header))   
+    myhdulist.writeto('temp_file.fits', clobber=True)
+
+    #Execute the astrometry.net command (solve_field)
+    cmd = 'solve-field --dir %s --no-plots --index-xyls none --match none --corr none ' \
+          '--rdls none --solved none --new-fits none %s' % (output_dir, temp_fits_filename)
+
+    process = subprocess.Popen(shlex.split(cmd))
+    output_data, error_data = process.communicate()
+
+    #Retrieve the WCS header
+    pos = temp_fits_filename.find('.')
+    temp_base = temp_fits_filename[:pos]
+    newWCSHeader = fits.open(os.path.join(output_dir, temp_base + '.wcs'))[0].header
+    
+    #Add WCS info to header
+    header.extend(newWCSHeader)
+    
+    #clean up temporary files
+    os.system('rm -rf %s' % (output_dir))
+    os.system('rm %s' % (temp_fits_filename))

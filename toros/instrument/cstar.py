@@ -14,14 +14,20 @@
 
 from astropy.io import fits
 import numpy as np
-import numpy.ma as ma
+import datetime as d
+from astropy.time import Time
 
-def reduce(image_file_name):
+def reduce(cstar_file_name):
     
-    image = np.ma.array(fits.getdata(image_file_name))
+    hdulist = fits.open(cstar_file_name)
+    deleteBadCards(hdulist)
+    correctDate(hdulist)
+    
+    image = np.ma.array(hdulist[0].data)
     image[image < 0] = np.ma.masked
     maskSaturation(image)
-    return image
+        
+    return hdulist[0].header, image
         
     
 def bkgNoiseSigma(dataImg, noiseLvl = 3.0):
@@ -57,14 +63,11 @@ def maskSaturation(image_in, sat_level = None):
         image = image_in
     
     def findSaturationLevel(image):
-        old_fill_value = image.fill_value
-        image.set_fill_value(0.)
-        colSums = (image.filled()).sum(axis=0)
+        colSums = (image.filled(fill_value = 0.)).sum(axis=0)
         colNorms = (~image.mask).sum(axis=0)
         colSums[colNorms > 0.] /= colNorms[colNorms > 0.]
         mm, ss = colSums[colSums != 0].mean(), colSums[colSums != 0].std()
         sat_level = min(map(max, (image.T)[colSums > mm + 3.*ss]))
-        image.set_fill_value(old_fill_value)
         return sat_level
         
     if sat_level is None:
@@ -153,3 +156,10 @@ def correctDate(hdulist):
     
     head['date-obs'] = (tcorr.isot, 'Julian UTC datetime with correction')
     del head['time']
+
+
+def deleteBadCards(hdulist):
+    """Correct the CSTAR TEMPERAT card in the header file."""
+    head = hdulist[0].header    
+    del head['TEMPERAT']
+    del head['']
