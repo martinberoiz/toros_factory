@@ -3,6 +3,7 @@ from scipy.spatial import KDTree
 from itertools import combinations
 import pkg_resources
 import os
+from astropy.io import fits
 
 import sys
 if '../' not in sys.path: sys.path.append('../')
