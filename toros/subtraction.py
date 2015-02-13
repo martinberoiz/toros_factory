@@ -215,3 +215,43 @@ def getOptimalKernelAndBkg(image, refImage, gaussList = None, bkgDegree = 3, ker
     return optimal_image, kernel, background
 
 
+def optimalSubtractOnGrid(image, refImage, gaussList = None, bkgDegree = 3, kernelShape = (11,11), gridShape=(2,2)):
+    ny, nx = gridShape
+    h, w = image.shape
+    kh, kw = kernelShape
+
+    #normal slices with no border
+    stamps_y = [slice(h*i/ny, h*(i+1)/ny, None)  for i in range(ny)]
+    stamps_x = [slice(w*i/nx, w*(i+1)/nx, None)  for i in range(nx)]
+    
+    #slices with borders where possible
+    slc_wborder_y = [slice(max(0, h*i/ny - (kh-1)/2), min(h, h*(i+1)/ny + (kh-1)/2), None)  for i in range(ny)]
+    slc_wborder_x = [slice(max(0, w*i/nx - (kw-1)/2), min(w, w*(i+1)/nx + (kw-1)/2), None)  for i in range(nx)]
+    
+    imgStamps = [image[sly, slx] for sly in slc_wborder_y for slx in slc_wborder_x]
+    refStamps = [refImage[sly, slx] for sly in slc_wborder_y for slx in slc_wborder_x]
+        
+    #After we do the subtraction we need to crop the extra borders in the stamps.
+    #The recover_slices are the prescription for what to crop on each stamp.
+    recover_slices = []
+    for i in range(ny):
+        start_border_y, stop_border_y = slc_wborder_y[i].start, slc_wborder_y[i].stop
+        sly_stop = h*(i+1)/ny - stop_border_y
+        if sly_stop == 0: sly_stop = None
+        sly = slice(h*i/ny - start_border_y, sly_stop, None)
+        for j in range(nx):
+            start_border_x, stop_border_x = slc_wborder_x[j].start, slc_wborder_x[j].stop
+            slx_stop = w*(j+1)/nx - stop_border_x
+            if slx_stop == 0: slx_stop = None
+            slx = slice(w*j/nx - start_border_x, slx_stop, None)
+            recover_slices.append([sly,slx])
+            
+    #Here do the subtraction on each stamp
+    subtractCollage = np.ma.empty(image.shape)    
+    stamp_slices = [[sly, slx] for sly in stamps_y for slx in stamps_x]
+    for ind, ((sly_out, slx_out), (sly_in, slx_in)) in enumerate(zip(recover_slices, stamp_slices)):
+        opti, ki, bgi = getOptimalKernelAndBkg(imgStamps[ind], refStamps[ind], \
+                                                                 gaussList, bkgDegree, kernelShape)
+        subtractCollage[sly_in, slx_in] = (imgStamps[ind] - opti)[sly_out, slx_out]
+        
+    return subtractCollage
