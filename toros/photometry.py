@@ -70,7 +70,7 @@ def getFluxesForRADec(radecList, image, the_wcs, bkg_level = 0, apRadius = 3.5):
     good_pix_mask = np.array(good_pix_mask)
     
     apertures = CircularAperture(pix_ctr, apRadius)
-    fluxes = aperture_photometry(image, apertures)
+    fluxes = np.array(aperture_photometry(image, apertures)['aperture_sum'])
     fluxes -= bkg_level * np.pi * apRadius**2
     
     return fluxes, good_pix_mask
