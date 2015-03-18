@@ -83,11 +83,11 @@ def __CVectorsForDeltaBasis(refImage, kernelShape, badPixMask):
             else:
                 C.extend([Cij])
 
-    # This is more pythonic but could be slower. I didn't test speed.
+    # This is more pythonic but much slower (50 times slower)
     #canonBasis = np.identity(kw*kh).reshape(kh*kw,kh,kw)
     #C.extend([signal.convolve2d(refImage, kij, mode='same')
     #                 for kij in canonBasis])
-    #    canonBasis = None
+    #canonBasis = None
 
     return C
 
