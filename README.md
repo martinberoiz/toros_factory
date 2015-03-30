@@ -1,17 +1,23 @@
-TOROS pipeline
-----------------------
+TOROS Factory pipeline
+--------------------------------
 
 A collection of tools to process images
 for the Transient Optical Robotic Observatory of the South (TOROS).
 
-Minimal usage example:
+These tools are intended to be used in scripts.
+Minimal example to get a subtraction image from a FITS file:
 
-    >>> python workflow.py cstar_test_image.fits.gz
+    >>> import toros
+    >>> from toros.instrument import your_favorite_telescope as telescope
+    >>> header, image = telescope.reduce("myImage.fitsi)
+    >>> toros.photometry.photoCalibrate(header, image, "catalog.txt")
+    >>> refImage = toros.skygoldmaster.getReference(image)
+    >>> subtraction_image = optimalSubtractOnGrid(image, refImage)
 
-For more information refer to the docstrings for the package.
+For more information refer to the docstrings in the package.
 
 Martin Beroiz - 2014
 
 email: <martinberoiz@phys.utb.edu>
 
-University of Texas at San Antonio
+(c) University of Texas at San Antonio

@@ -8,3 +8,5 @@ import astrometry
 import photometry
 import registration
 import subtraction
+
+__version__ = 'dv0.1.0'

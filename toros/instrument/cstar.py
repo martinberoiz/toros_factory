@@ -14,54 +14,68 @@
 
 from astropy.io import fits
 import numpy as np
-import numpy.ma as ma
+import datetime as d
+from astropy.time import Time
 
-def reduce(image_file_name):
+def reduce(cstar_file_name):
     
-    image = fits.getdata(image_file_name).astype('float32')
+    hdulist = fits.open(cstar_file_name)
+    deleteBadCards(hdulist)
+    correctDate(hdulist)
     
-    bleedMask = maskBleeding(image, badPixMask = image < 0)
-    badPixMask = bleedMask + (image < 0) #combine bad pixels and bled pixels mask
-    new_image = ma.array(image, mask=badPixMask)
-    
-    return new_image
+    image = np.ma.array(hdulist[0].data)
+    image[image < 0] = np.ma.masked
+    maskSaturation(image)
+        
+    return hdulist[0].header, image
         
     
-def bkgNoiseSigma(dataImg, noiseLvl = 3.0, goodPixMask = None):
+def bkgNoiseSigma(dataImg, noiseLvl = 3.0):
     """Return background mean and std. dev. of sky background.
-        
+    
     Calculate the background (sky) mean value and a measure of its standard deviation.
     Background is considered anything below 'noiseLvl' sigmas.
     goodPixMask is a mask containing the good pixels that should be considered.
     Return mean, std_dev
     """
-    m = dataImg[goodPixMask].mean()
-    s = dataImg[goodPixMask].std()
-    
+    m = dataImg.mean()
+    s = dataImg.std()
+
     prevSgm = 2*s #This will make the first while condition true
     tol = 1E-2
     while abs(prevSgm - s)/s > tol:
         prevSgm = s
         bkgMask = np.logical_and(dataImg < m + noiseLvl*s, dataImg > m - noiseLvl*s)
-        if goodPixMask != None: bkgMask = np.logical_and(bkgMask, goodPixMask)
-        m = dataImg[bkgMask].mean()
-        s = dataImg[bkgMask].std()
-    
+        if isinstance(bkgMask, np.ma.MaskedArray):
+            bkgMask = bkgMask.astype(bool)
+            bkgMask.set_fill_value(False)
+            bkgMask = bkgMask.filled()
+        m, s = dataImg[bkgMask].mean(), dataImg[bkgMask].std()
+
     return m, s
 
 
-def cleanBleeding(img, sigmas = 1.):
-    """Fill bled columns with minimum value of image.
+def maskSaturation(image_in, sat_level = None):
+    
+    if not isinstance(image_in, np.ma.MaskedArray):
+        image = np.ma.array(image_in)
+    else:
+        image = image_in
+    
+    def findSaturationLevel(image):
+        colSums = (image.filled(fill_value = 0.)).sum(axis=0)
+        colNorms = (~image.mask).sum(axis=0)
+        colSums[colNorms > 0.] /= colNorms[colNorms > 0.]
+        mm, ss = colSums[colSums != 0].mean(), colSums[colSums != 0].std()
+        sat_level = min(map(max, (image.T)[colSums > mm + 3.*ss]))
+        return sat_level
         
-    Clean vertical bleeding by filling the whole column where bleeding occurs
-    with the minimum value of the image.
-    'sigmas' is the threshold (in std dev units) to mark a colum as containing bleeding.
-    """
-    colSums = np.array([np.sum(img[:,i]) for i in range(0,img.shape[1])])
-    colSums = colSums - colSums.min()
-    blIndx = colSums > sigmas * colSums.std()
-    img[:,blIndx] = img.min()
-
+    if sat_level is None:
+        sat_level = 0.9 * findSaturationLevel(image)
+    
+    image[image > sat_level] = np.ma.masked
+    return image
+    
 
 def maskBleeding(scidata, badPixMask = None):
     """Return a mask for the bad and bled columns (True on bleeding).
@@ -112,32 +126,6 @@ def maskBleeding(scidata, badPixMask = None):
     return bleedMask
 
 
-def processCSTARImage(scidata):
-    """Helper function that process a CSTAR image to be used in the coadd method.
-    
-    Create a mask for bled columns, bad pixels, and create a uint8 numpy
-    array for the image. Return the uint8 image and the mask.
-    """
-    
-    badPixMask = np.array(scidata < 0.)
-    bleedMask = maskBleeding(scidata, badPixMask)
-    
-    #Add bleeding colums to the bad pixels mask
-    badPixMask = np.logical_or(bleedMask, badPixMask)
-    goodPixMask = np.logical_not(badPixMask)
-    
-    #Set bad pixels to zero
-    scidata[badPixMask] = 0.
-    
-    reduced_im = makeSourcesImage(scidata, mask=goodPixMask)
-    xmin = reduced_im.min()
-    xmax = reduced_im.max()
-    reduced_im = (reduced_im - xmin)*(255.0/(xmax - xmin))
-    reduced_im = reduced_im.astype('uint8', copy=False)
-    
-    return reduced_im, badPixMask
-
-
 def correctDate(hdulist):
     """Correct the CSTAR date format (a string) for the DATE-OBS header keyword and replace with an ISOT format."""
     head = hdulist[0].header
@@ -168,3 +156,10 @@ def correctDate(hdulist):
     
     head['date-obs'] = (tcorr.isot, 'Julian UTC datetime with correction')
     del head['time']
+
+
+def deleteBadCards(hdulist):
+    """Correct the CSTAR TEMPERAT card in the header file."""
+    head = hdulist[0].header    
+    del head['TEMPERAT']
+    del head['']
