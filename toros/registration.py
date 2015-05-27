@@ -165,7 +165,9 @@ def createIndexForMaster(ref_srcs, invariantMap=None):
     
     
 def addAstrometryNet(image, header):
-    output_dir = 'astrometrynet_output'
+    output_dir = 'astrometrynet_temp_output'
+    #Clean up whatever might be left from a previous run
+    os.system('rm -rf %s' % (output_dir))
     os.system('mkdir -p %s' % (output_dir))
 
     #Create a temporary file for Astrometry.net to process
@@ -174,11 +176,11 @@ def addAstrometryNet(image, header):
         myhdulist = fits.HDUList(fits.PrimaryHDU(data=image.filled(fill_value = 0.), header=header))
     else:
         myhdulist = fits.HDUList(fits.PrimaryHDU(data=image, header=header))   
-    myhdulist.writeto('temp_file.fits', clobber=True)
+    myhdulist.writeto(os.path.join(output_dir, temp_fits_filename), clobber=True)
 
     #Execute the astrometry.net command (solve_field)
     cmd = 'solve-field --dir %s --no-plots --index-xyls none --match none --corr none ' \
-          '--rdls none --solved none --new-fits none %s' % (output_dir, temp_fits_filename)
+          '--rdls none --solved none --new-fits none %s' % (output_dir, os.path.join(output_dir, temp_fits_filename))
 
     process = subprocess.Popen(shlex.split(cmd))
     output_data, error_data = process.communicate()
@@ -193,4 +195,4 @@ def addAstrometryNet(image, header):
     
     #clean up temporary files
     os.system('rm -rf %s' % (output_dir))
-    os.system('rm %s' % (temp_fits_filename))
+    
