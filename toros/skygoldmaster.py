@@ -35,17 +35,8 @@ def getReference(image_in, header_in = None, reference_fits_file = None):
     if reference_fits_file is None:
         reference_fits_file = _REF_IMAGE_NAME
     
-    DoesImageHaveWCS = True
-    if header_in is None: 
-        DoesImageHaveWCS = False
-    else:
-        try:
-            the_wcs = wcs.WCS(header_in)
-        except WcsError:
-            print("No WCS information found in header")
-            DoesImageHaveWCS = False
-    
-    if DoesImageHaveWCS:
+    #Check if there is a header available
+    if (header_in is not None) and _checkIfWCS(header_in):
         #reproject with reproject here...
         ref_path = pkg_resources.resource_filename('toros.resources', reference_fits_file)
         refhdu = fits.open(ref_path)[0]
@@ -58,6 +49,12 @@ def getReference(image_in, header_in = None, reference_fits_file = None):
         gold_master = _no_wcs_available(image_in, reference_fits_file)
     
     return gold_master
+    
+    
+def _checkIfWCS(header):
+    my_wcs = wcs.WCS(header)
+    return True if my_wcs.wcs.ctype[0] else False
+
 
 def _no_wcs_available(image_in, reference_fits_file):
     
