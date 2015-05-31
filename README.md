@@ -10,7 +10,7 @@ Minimal example to get a subtraction image from a FITS file:
     >>> import toros
     >>> from toros.instrument import your_favorite_telescope as telescope
     >>> header, image = telescope.reduce("myImage.fits")
-    >>> refImage = toros.skygoldmaster.getReference(image)
+    >>> refImage = toros.skygoldmaster.getReference(image, header)
     >>> subtraction_image = toros.subtract.optimalSubtractOnGrid(image, refImage)
 
 For more information refer to the docstrings in the package.
