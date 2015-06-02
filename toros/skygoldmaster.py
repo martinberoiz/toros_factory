@@ -33,15 +33,15 @@ def getReference(image_in, header_in = None, reference_fits_file = None):
     Return reference_image"""
         
     if reference_fits_file is None:
-        reference_fits_file = _REF_IMAGE_NAME
-    
+        reference_fits_file = pkg_resources.resource_filename('toros.resources', _REF_IMAGE_NAME)
+        
     #Check if there is a header available
-    if (header_in is not None) and _checkIfWCS(header_in):
+    ref_header = fits.getheader(reference_fits_file)
+    if (header_in is not None) and _checkIfWCS(header_in) and _checkIfWCS(ref_header):
         #reproject with reproject here...
-        ref_path = pkg_resources.resource_filename('toros.resources', reference_fits_file)
-        refhdu = fits.open(ref_path)[0]
-        ref_mask = fits.getdata(ref_path) < 0
-        refhdu_mask = fits.PrimaryHDU(ref_mask.astype('float'), header=fits.getheader(ref_path))
+        refhdu = fits.open(reference_fits_file)[0]
+        ref_mask = fits.getdata(reference_fits_file) < 0
+        refhdu_mask = fits.PrimaryHDU(ref_mask.astype('float'), header=ref_header)
         ref_reproj_data, __ = reproject_interp(refhdu, header_in)
         ref_reproj_mask, __ = reproject_interp(refhdu_mask, header_in)
         gold_master = np.ma.array(data=ref_reproj_data, mask=ref_reproj_mask)
@@ -64,9 +64,8 @@ def _no_wcs_available(image_in, reference_fits_file):
         image_in_ma = image_in
     test_srcs = findSources(image_in_ma)[:50]
     
-    ref_path = pkg_resources.resource_filename('toros.resources', reference_fits_file)
-    ref_image = fits.getdata(ref_path)           
-    ref_mask = ref_image < 0
+    ref_image = fits.getdata(reference_fits_file)           
+    ref_mask  = ref_image < 0
     ref_image = np.ma.array(ref_image, mask=ref_mask)
     
     try:
