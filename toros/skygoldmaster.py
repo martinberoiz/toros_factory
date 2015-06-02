@@ -32,16 +32,22 @@ def getReference(image_in, header_in = None, reference_fits_file = None):
     a reprojected reference image array for the same portion of the sky.
     Return reference_image"""
         
+    #It's assumed that the default master has WCS info
     if reference_fits_file is None:
-        reference_fits_file = pkg_resources.resource_filename('toros.resources', _REF_IMAGE_NAME)
+        refHasWCS = True
+    else:
+        refHasWCS = _checkIfWCS(fits.getheader(reference_fits_file))
         
     #Check if there is a header available
-    ref_header = fits.getheader(reference_fits_file)
-    if (header_in is not None) and _checkIfWCS(header_in) and _checkIfWCS(ref_header):
+    if (header_in is not None) and _checkIfWCS(header_in) and refHasWCS:
         #reproject with reproject here...
+
+        if reference_fits_file is None:
+            reference_fits_file = pkg_resources.resource_filename('toros.resources', _REF_IMAGE_NAME)
+
         refhdu = fits.open(reference_fits_file)[0]
-        ref_mask = fits.getdata(reference_fits_file) < 0
-        refhdu_mask = fits.PrimaryHDU(ref_mask.astype('float'), header=ref_header)
+        ref_mask = refhdu.data < 0
+        refhdu_mask = fits.PrimaryHDU(ref_mask.astype('float'), header=refhdu.header)
         ref_reproj_data, __ = reproject_interp(refhdu, header_in)
         ref_reproj_mask, __ = reproject_interp(refhdu_mask, header_in)
         gold_master = np.ma.array(data=ref_reproj_data, mask=ref_reproj_mask)
@@ -64,22 +70,18 @@ def _no_wcs_available(image_in, reference_fits_file):
         image_in_ma = image_in
     test_srcs = findSources(image_in_ma)[:50]
     
-    ref_image = fits.getdata(reference_fits_file)           
-    ref_mask  = ref_image < 0
-    ref_image = np.ma.array(ref_image, mask=ref_mask)
+    if reference_fits_file is None:
+        ref_image = fits.getdata(pkg_resources.resource_filename('toros.resources', _REF_IMAGE_NAME))           
+        ref_mask  = ref_image < 0
+        ref_image = np.ma.array(ref_image, mask=ref_mask)
+        ref_sources = None
+    else:
+        ref_image = fits.getdata(reference_fits_file)           
+        ref_mask  = ref_image < 0
+        ref_image = np.ma.array(ref_image, mask=ref_mask)
+        ref_sources = findSources(ref_image)[:70]
     
-    try:
-        M = registration.findAffineTransform(test_srcs)
-    except:
-        #Create index file if it's not created
-        print('No reference index found. Creating one.')
-        try:
-            ref_srcs = np.load(registration._referenceSourcesNumpyFileName)
-        except:
-            print('No reference sources files found. Creating new one.')
-            ref_srcs = findSources(ref_image)[:70]
-        registration.createIndexForMaster(ref_srcs)
-        M = registration.findAffineTransform(test_srcs)
+    M = registration.findAffineTransform(test_srcs, ref_srcs = ref_sources)
 
     #SciPy Affine transformation transform a (row,col) pixel according to pT+s where p is in the _output_ image,
     #T is the rotation and s the translation offset, so some mathematics is required to put it into a suitable form
