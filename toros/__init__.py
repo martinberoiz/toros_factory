@@ -9,4 +9,4 @@ import photometry
 import registration
 import subtraction
 
-__version__ = 'dv0.1.1'
+__version__ = '1.0a0.1.1'
