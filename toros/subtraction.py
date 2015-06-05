@@ -216,6 +216,27 @@ def getOptimalKernelAndBkg(image, refImage, gaussList = None, bkgDegree = 3, ker
 
 
 def optimalSubtractOnGrid(image, refImage, gaussList = None, bkgDegree = 3, kernelShape = (11,11), gridShape=(2,2)):
+    """Implement Optimal Image Subtraction on a grid and return the optimal subtraction
+        
+    This is an implementation of the Optimal Image Subtraction algorith of Alard&Lupton(1998) and Bramich(2010)
+    It returns the optimal subtraction between image and refImage.
+    
+    gaussList is a list of dictionaries containing data of the gaussians used in the multigaussian decomposition
+    of the kernel [Alard&Lupton, 1998]. Dictionary keywords are:
+    center, sx, sy, modPolyDeg
+    If gaussList is None (default value), the OIS will try to optimize the value of each pixel in
+    the kernel [Bramich, 2010].
+    
+    bkgDegree is the degree of the polynomial to fit the background.
+    
+    kernelShape is the shape of the kernel to use.
+
+    gridShape is a tuple containing the number of vertical and horizontal divisions of the grid.
+
+    This method does not interpolate between the grids.
+    
+    Return (subtraction_array)
+    """
     ny, nx = gridShape
     h, w = image.shape
     kh, kw = kernelShape

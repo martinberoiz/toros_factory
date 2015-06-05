@@ -4,11 +4,7 @@ from itertools import combinations
 import pkg_resources
 import os
 from astropy.io import fits
-
-import sys
-if '../' not in sys.path: sys.path.append('../')
-import toros.ransac as ransac
-
+import ransac
 import shlex, subprocess
 
 _referenceSourcesNumpyFileName = 'masterReferenceSources.npy'
@@ -173,7 +169,7 @@ def addAstrometryNet(image, header):
     #Create a temporary file for Astrometry.net to process
     temp_fits_filename = 'temp_file.fits'
     if isinstance(image, np.ma.MaskedArray):
-        myhdulist = fits.HDUList(fits.PrimaryHDU(data=image.filled(fill_value = 0.), header=header))
+        myhdulist = fits.HDUList(fits.PrimaryHDU(data=image.filled(fill_value = np.median(image)), header=header))
     else:
         myhdulist = fits.HDUList(fits.PrimaryHDU(data=image, header=header))   
     myhdulist.writeto(os.path.join(output_dir, temp_fits_filename), clobber=True)
