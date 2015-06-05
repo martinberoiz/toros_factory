@@ -1,12 +1,13 @@
-"""Here should be the docstring for the toros package."""
+"""TOROS Transient Factory Pipeline"""
+
+import pkg_resources
+__package__ = 'toros'
+__version__ = pkg_resources.get_distribution('toros').version
 
 import firstweed
-import reduction
 import skygoldmaster
 import trackremoval
-import astrometry
 import photometry
 import registration
 import subtraction
 
-__version__ = '1.0a0.1.1'
