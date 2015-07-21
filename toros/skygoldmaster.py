@@ -16,57 +16,52 @@
 import numpy as np
 from astropy.io import fits
 import math
-import pkg_resources
 from scipy import ndimage
 from skimage import exposure
 import registration
 from astropy import wcs
-from reproject import reproject_interp
 
-_REF_IMAGE_NAME = 'master2010.fits'
 
-def getReference(image_in, header_in = None, reference_fits_file = None, ref_maskfile=None):
+def getReference(image_in, header_in, reference_fits_file, useExactReproj=False):
     """Return the reference image aligned with the input image.
 
-    getReference accepts a numpy array (masked or not) or a header with WCS information and optionally a master reference fits file and return
+    getReference accepts a numpy array (masked or not) and a header with WCS information and a master reference fits file and return
     a reprojected reference image array for the same portion of the sky.
     Return reference_image"""
+    from reproject import reproject_interp, reproject_exact
 
-    #It's assumed that the default master has WCS info
-    if reference_fits_file is None:
-        refHasWCS = True
-    else:
-        refHasWCS = _checkIfWCS(fits.getheader(reference_fits_file))
+    refHasWCS = _headerHasWCS(fits.getheader(reference_fits_file))
+
+    refhdulist = fits.open(reference_fits_file)
+    
+    ref_mask = np.zeros(refhdulist[0].data.shape, dtype='bool')
+    for anhdu in refhdulist[1:]:
+        #Combine all the 'bad' and 'mask' masks into a single one, if any
+        if any(s in anhdu.name for s in ["bad", "mask"]):
+            ref_mask = ref_mask | anhdu.data
 
     #Check if there is a header available
-    if (header_in is not None) and _checkIfWCS(header_in) and refHasWCS:
+    if (header_in is not None) and _headerHasWCS(header_in) and refHasWCS:
         #reproject with reproject here...
 
-        if reference_fits_file is None:
-            reference_fits_file = pkg_resources.resource_filename('toros.resources', _REF_IMAGE_NAME)
-
-        refhdu = fits.open(reference_fits_file)[0]
-        if ref_maskfile is None:
-            ref_mask = refhdu.data < 0
-            refhdu_mask = fits.PrimaryHDU(ref_mask.astype('float'), header=refhdu.header)
-        else:
-            refhdu_mask = fits.open(ref_maskfile)[0]
-            ref_mask = refhdu_mask.data
-        ref_reproj_data, __ = reproject_interp(refhdu, header_in)
-        ref_reproj_mask, __ = reproject_interp(refhdu_mask, header_in)
+        if useExactReproj: ref_reproj_data, __ = reproject_exact(refhdulist[0], header_in)
+        else: ref_reproj_data, __ = reproject_interp(refhdulist[0], header_in)
+        ref_reproj_mask, __ = reproject_interp((ref_mask, refhdulist[0].header), header_in)
+        
         gold_master = np.ma.array(data=ref_reproj_data, mask=ref_reproj_mask)
+
     else:
-        gold_master = _no_wcs_available(image_in, reference_fits_file)
+        #Here do the no WCS method
+        gold_master = _no_wcs_available(image_in, np.ma.array(refhdulist[0].data, mask=ref_mask))
 
     return gold_master
 
-
-def _checkIfWCS(header):
+def _headerHasWCS(header):
     my_wcs = wcs.WCS(header)
     return True if my_wcs.wcs.ctype[0] else False
 
 
-def _no_wcs_available(image_in, reference_fits_file):
+def _no_wcs_available(image_in, ref_image):
 
     if not isinstance(image_in, np.ma.MaskedArray):
         image_in_ma = np.ma.array(image_in)
@@ -74,16 +69,7 @@ def _no_wcs_available(image_in, reference_fits_file):
         image_in_ma = image_in
     test_srcs = findSources(image_in_ma)[:50]
 
-    if reference_fits_file is None:
-        ref_image = fits.getdata(pkg_resources.resource_filename('toros.resources', _REF_IMAGE_NAME))
-        ref_mask  = ref_image < 0
-        ref_image = np.ma.array(ref_image, mask=ref_mask)
-        ref_sources = None
-    else:
-        ref_image = fits.getdata(reference_fits_file)
-        ref_mask  = ref_image < 0
-        ref_image = np.ma.array(ref_image, mask=ref_mask)
-        ref_sources = findSources(ref_image)[:70]
+    ref_sources = findSources(ref_image)[:70]
 
     M = registration.findAffineTransform(test_srcs, ref_srcs = ref_sources)
 
