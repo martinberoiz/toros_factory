@@ -39,6 +39,8 @@ if __name__ == "__main__":
             print("Test image %s, Ref Image %s" % (test_label, ref_label))
             try:
                 ref = toros.skygoldmaster.getReference(test_data_mask, test_h, ref_file)
+                plt.imshow(ref, cmap='gray')
+                plt.show()
                 print("Success")
             except:
                 print("Fail")
