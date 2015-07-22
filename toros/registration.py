@@ -1,15 +1,10 @@
 import numpy as np
 from scipy.spatial import KDTree
 from itertools import combinations
-import pkg_resources
 import os
 from astropy.io import fits
 import ransac
 import shlex, subprocess
-
-_referenceSourcesNumpyFileName = 'masterReferenceSources.npy'
-_invariantNumpyFileName        = 'masterInvariants.npy'
-_asterismNumpyFileName         = 'masterAsterisms.npy'
 
 class InvariantTriangleMapping():
     
@@ -105,25 +100,18 @@ class InvariantTriangleMapping():
             return np.array(error)
 
 
-def findAffineTransform(test_srcs, ref_srcs = None, max_pix_tol = 2., min_matches_fraction = 0.8, invariantMap=None):
+def findAffineTransform(test_srcs, ref_srcs, max_pix_tol = 2., min_matches_fraction = 0.8, invariantMap=None):
     if len(test_srcs) < 3:
         raise Exception("Test sources has less than the minimum value of points (3).")
     
     if invariantMap is None:
         invMap = InvariantTriangleMapping()
     
-    if ref_srcs is None:
-        ref_srcs_filename = pkg_resources.resource_filename('toros.resources', _referenceSourcesNumpyFileName)
-        invariants_filename = pkg_resources.resource_filename('toros.resources', _invariantNumpyFileName)
-        asterism_filename = pkg_resources.resource_filename('toros.resources', _asterismNumpyFileName)
-        ref_srcs = np.load(ref_srcs_filename)
-        ref_invariants, ref_asterisms = np.load(invariants_filename), np.load(asterism_filename)
-    else:
-        if len(ref_srcs) < 3:
-            raise Exception("Test sources has less than the minimum value of points (3).")
-        #generateInvariants should return a list of the invariant tuples for each asterism and 
-        # a corresponding list of the indices that make up the asterism 
-        ref_invariants, ref_asterisms = invMap.generateInvariants(ref_srcs, nearest_neighbors = 7)
+    if len(ref_srcs) < 3:
+        raise Exception("Test sources has less than the minimum value of points (3).")
+    #generateInvariants should return a list of the invariant tuples for each asterism and 
+    # a corresponding list of the indices that make up the asterism 
+    ref_invariants, ref_asterisms = invMap.generateInvariants(ref_srcs, nearest_neighbors = 7)
     ref_invariant_tree = KDTree(ref_invariants)
 
     test_invariants, test_asterisms = invMap.generateInvariants(test_srcs, nearest_neighbors = 5)
@@ -146,19 +134,6 @@ def findAffineTransform(test_srcs, ref_srcs = None, max_pix_tol = 2., min_matche
     bestM = ransac.ransac(matches, invModel, 1, max_iter, max_pix_tol, min_matches)
     return bestM
 
-
-def createIndexForMaster(ref_srcs, invariantMap=None):
-    """This should create the catalog of invariants for the master image to compare with"""
-    if invariantMap is None:
-        invMap = InvariantTriangleMapping()
-    
-    ref_invariants, ref_asterisms = invMap.generateInvariants(ref_srcs, nearest_neighbors = 7)
-    
-    resource_dir = pkg_resources.resource_filename('toros.resources','')
-    np.save(os.path.join(resource_dir, _invariantNumpyFileName), ref_invariants)
-    np.save(os.path.join(resource_dir, _asterismNumpyFileName), ref_asterisms)
-    np.save(os.path.join(resource_dir, _referenceSourcesNumpyFileName), ref_srcs)
-    
     
 def addAstrometryNet(image, header):
     output_dir = 'astrometrynet_temp_output'
