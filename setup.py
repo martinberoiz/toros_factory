@@ -1,7 +1,7 @@
 from distutils.core import setup
 
 setup(name='toros',
-      version='1.0a0.1.1',
+      version='1.0a0.1.2',
       description='TOROS Project pipeline',
       author='Martin Beroiz',
       author_email='martinberoiz@phys.utb.edu',
