@@ -37,7 +37,7 @@ def getReference(image_in, header_in, reference_fits_file, useExactReproj=False)
     ref_mask = np.zeros(refhdulist[0].data.shape, dtype='bool')
     for anhdu in refhdulist[1:]:
         #Combine all the 'bad' and 'mask' masks into a single one, if any
-        if any(s in anhdu.name for s in ["bad", "mask"]):
+        if any(s in anhdu.name.lower() for s in ["bad", "mask"]):
             ref_mask = ref_mask | anhdu.data
 
     #Check if there is a header available
