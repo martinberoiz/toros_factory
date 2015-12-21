@@ -16,7 +16,6 @@
 import numpy as np
 from astropy.io import fits
 import math
-from scipy import ndimage
 from skimage import exposure
 import registration
 from astropy import wcs
@@ -62,7 +61,7 @@ def _headerHasWCS(header):
 
 
 def _no_wcs_available(image_in, ref_image):
-
+    from scipy import ndimage
     if not isinstance(image_in, np.ma.MaskedArray):
         image_in_ma = np.ma.array(image_in)
     else:
@@ -98,8 +97,8 @@ def _no_wcs_available(image_in, ref_image):
     #Mrcinv_offset = -P.dot(M_rot_inv).dot(M_offset)
 
     gold_master = ndimage.interpolation.affine_transform(ref_image, Mrcinv_rot, offset=Mrcinv_offset, output_shape=image_in.shape)
-    #gold_master_mask = ndimage.interpolation.affine_transform(ref_img.mask, M_rot, offset=M_offset, output_shape=image_in.shape)
-    gold_master = np.ma.array(gold_master, mask=gold_master < 0)
+    gold_master_mask = ndimage.interpolation.affine_transform(ref_image.mask, Mrcinv_rot, offset=Mrcinv_offset, output_shape=image_in.shape)
+    gold_master = np.ma.array(gold_master, mask=gold_master_mask)
 
     return gold_master
 
@@ -143,6 +142,7 @@ def bkgNoiseSigma(dataImg, noiseLvl = 3.0):
 def findSources(image):
     """Return sources sorted by brightness.
     """
+    from scipy import ndimage
 
     img1 = image.copy()
     src_mask = makeSourcesMask(img1)
