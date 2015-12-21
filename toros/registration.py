@@ -134,8 +134,8 @@ def findAffineTransform(test_srcs, ref_srcs, max_pix_tol = 2., min_matches_fract
     bestM = ransac.ransac(matches, invModel, 1, max_iter, max_pix_tol, min_matches)
     return bestM
 
-    
-def addAstrometryNet(image, header):
+ 
+def addAstrometryNet(image, header, ra = None, dec = None, radius=None):
     output_dir = 'astrometrynet_temp_output'
     #Clean up whatever might be left from a previous run
     os.system('rm -rf %s' % (output_dir))
@@ -149,9 +149,13 @@ def addAstrometryNet(image, header):
         myhdulist = fits.HDUList(fits.PrimaryHDU(data=image, header=header))   
     myhdulist.writeto(os.path.join(output_dir, temp_fits_filename), clobber=True)
 
+    centerpos = ""
+    if ra is not None and dec is not None and radius is not None:
+        centerpos = "--ra %g --dec %g --radius %g" % (ra, dec, radius)
+
     #Execute the astrometry.net command (solve_field)
     cmd = 'solve-field --dir %s --no-plots --index-xyls none --match none --corr none ' \
-          '--rdls none --solved none --new-fits none %s' % (output_dir, os.path.join(output_dir, temp_fits_filename))
+          '--rdls none --solved none %s --new-fits none %s' % (output_dir, centerpos, os.path.join(output_dir, temp_fits_filename))
 
     process = subprocess.Popen(shlex.split(cmd))
     output_data, error_data = process.communicate()
@@ -160,10 +164,9 @@ def addAstrometryNet(image, header):
     pos = temp_fits_filename.find('.')
     temp_base = temp_fits_filename[:pos]
     newWCSHeader = fits.open(os.path.join(output_dir, temp_base + '.wcs'))[0].header
-    
+
     #Add WCS info to header
     header.extend(newWCSHeader)
-    
+
     #clean up temporary files
     os.system('rm -rf %s' % (output_dir))
-    

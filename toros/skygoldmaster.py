@@ -16,7 +16,6 @@
 import numpy as np
 from astropy.io import fits
 import math
-from scipy import ndimage
 from skimage import exposure
 import registration
 from astropy import wcs
@@ -37,7 +36,7 @@ def getReference(image_in, header_in, reference_fits_file, useExactReproj=False)
     ref_mask = np.zeros(refhdulist[0].data.shape, dtype='bool')
     for anhdu in refhdulist[1:]:
         #Combine all the 'bad' and 'mask' masks into a single one, if any
-        if any(s in anhdu.name for s in ["bad", "mask"]):
+        if any(s in anhdu.name.lower() for s in ["bad", "mask"]):
             ref_mask = ref_mask | anhdu.data
 
     #Check if there is a header available
@@ -62,7 +61,7 @@ def _headerHasWCS(header):
 
 
 def _no_wcs_available(image_in, ref_image):
-
+    from scipy import ndimage
     if not isinstance(image_in, np.ma.MaskedArray):
         image_in_ma = np.ma.array(image_in)
     else:
@@ -98,8 +97,8 @@ def _no_wcs_available(image_in, ref_image):
     #Mrcinv_offset = -P.dot(M_rot_inv).dot(M_offset)
 
     gold_master = ndimage.interpolation.affine_transform(ref_image, Mrcinv_rot, offset=Mrcinv_offset, output_shape=image_in.shape)
-    #gold_master_mask = ndimage.interpolation.affine_transform(ref_img.mask, M_rot, offset=M_offset, output_shape=image_in.shape)
-    gold_master = np.ma.array(gold_master, mask=gold_master < 0)
+    gold_master_mask = ndimage.interpolation.affine_transform(ref_image.mask, Mrcinv_rot, offset=Mrcinv_offset, output_shape=image_in.shape)
+    gold_master = np.ma.array(gold_master, mask=gold_master_mask)
 
     return gold_master
 
@@ -143,6 +142,7 @@ def bkgNoiseSigma(dataImg, noiseLvl = 3.0):
 def findSources(image):
     """Return sources sorted by brightness.
     """
+    from scipy import ndimage
 
     img1 = image.copy()
     src_mask = makeSourcesMask(img1)
